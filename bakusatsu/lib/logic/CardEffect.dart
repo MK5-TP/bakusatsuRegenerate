@@ -1,7 +1,7 @@
 import 'GameState.dart';
-import 'CardModel.dart';
-import 'Player.dart';
-import "Deck.dart";
+import '../models/CardModel.dart';
+import '../models/Player.dart';
+import "../models/Deck.dart";
 import 'dart:math';
 
 //カードの関数メソッドがいっぱいあるクラス
