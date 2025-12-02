@@ -6,6 +6,7 @@ import '../logic/GameState.dart';
 import '../models/Player.dart';
 import '../models/CardModel.dart';
 import '../logic/CardEffect.dart';
+import '../widgets/WinnerBanner.dart'; 
 
 class GameScreen extends StatelessWidget {
   @override
@@ -29,6 +30,13 @@ class GameScreen extends StatelessWidget {
         title: Text("BAKUSATSU Web"),
         backgroundColor: Colors.black45,
         actions: [
+          IconButton(
+            icon: Icon(Icons.help_outline),
+            tooltip: 'ルール説明',
+            onPressed: () {
+              _showRuleDialog(context);
+            },
+          ),
           // デバッグ用：強制的にターンを進めるボタン
           IconButton(
             icon: Icon(Icons.skip_next),
@@ -67,21 +75,46 @@ class GameScreen extends StatelessWidget {
               children: [
                 // ログ表示エリア
                 Container(
+                  width: 300,
+                  height: 150,
                   padding: EdgeInsets.all(8),
-                  color: Colors.black54,
-                  child: Text(
-                    gameState.lastLog,
-                    style: TextStyle(color: Colors.yellowAccent),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white30),
                   ),
+                  child: ListView.builder(
+                      itemCount: gameState.gameLogs.length,
+                      itemBuilder: (context, index) {
+                        // 最新のログほど文字を大きく/明るくする演出
+                        final log = gameState.gameLogs[index];
+                        final isLatest = index == 0;
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2.0),
+                          child: Text(
+                            log,
+                            style: TextStyle(
+                              color: isLatest
+                                  ? Colors.yellowAccent
+                                  : Colors.white70,
+                              fontWeight: isLatest
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              fontSize: isLatest ? 14 : 12,
+                            ),
+                          ),
+                        );
+                      }),
                 ),
                 SizedBox(height: 20),
                 // 山札と捨て札
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildDeckPlaceholder(),
+                    _buildDeckPlaceholder(gameState),
                     SizedBox(width: 20),
-                    _buildDiscardPlaceholder(),
+                    _buildDiscardPlaceholder(context, gameState),
                   ],
                 ),
               ],
@@ -126,13 +159,21 @@ class GameScreen extends StatelessWidget {
               ),
             ),
           ),
+          //リセットはゲーム終了後表示
+          if (gameState.gameOver)
+            WinnerBanner(
+              winners: gameState.getWinners(),
+              onReset: () {
+                gameState.resetGame(); 
+              },
+            ),
         ],
       ),
     );
   }
 
   // 山札の見た目
-  Widget _buildDeckPlaceholder() {
+  Widget _buildDeckPlaceholder(GameState gameState) {
     return Container(
       width: 60,
       height: 90,
@@ -142,23 +183,70 @@ class GameScreen extends StatelessWidget {
         border: Border.all(color: Colors.white, width: 2),
       ),
       child: Center(
-          child: Text("山札",
+          child: Text("山札\n${gameState.deck.deckSize}枚",
+              textAlign: TextAlign.center,
               style:
                   TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
     );
   }
 
   // 捨て札の見た目
-  Widget _buildDiscardPlaceholder() {
-    return Container(
-      width: 60,
-      height: 90,
-      decoration: BoxDecoration(
-        color: Colors.grey,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white54, width: 2),
+  Widget _buildDiscardPlaceholder(BuildContext context, GameState gameState) {
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (ctx) {
+            return AlertDialog(
+              title: Text("捨て札一覧 (${gameState.discardPile.length}枚)"),
+              content: Container(
+                width: double.maxFinite,
+                height: 300,
+                child: gameState.discardPile.isEmpty
+                    ? Center(child: Text("まだ捨て札はありません"))
+                    : ListView.builder(
+                        itemCount: gameState.discardPile.length,
+                        itemBuilder: (context, index) {
+                          final card = gameState.discardPile[index];
+                          return ListTile(
+                            leading: Icon(Icons.description,
+                                color: card.id <= 3 ? Colors.red : Colors.blue),
+                            title: Text(card.name),
+                            subtitle: Text(card.effect),
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text("閉じる"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+      child: Container(
+        width: 60,
+        height: 90,
+        decoration: BoxDecoration(
+          color: Colors.grey,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white54, width: 2),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text("捨札", style: TextStyle(color: Colors.white)),
+              SizedBox(height: 4),
+              Text("${gameState.discardPile.length}枚",
+                  style: TextStyle(color: Colors.white70, fontSize: 12)),
+            ],
+          ),
+        ),
       ),
-      child: Center(child: Text("捨札", style: TextStyle(color: Colors.white))),
     );
   }
 
@@ -184,7 +272,6 @@ class GameScreen extends StatelessWidget {
             .showSnackBar(SnackBar(content: Text("対象がいません")));
         return;
       }
-
 
       targetPlayer = await showDialog<Player>(
         context: context,
@@ -216,6 +303,7 @@ class GameScreen extends StatelessWidget {
     // 4. カード消費とターン経過
     if (myPlayer.hand.contains(card)) {
       myPlayer.hand.remove(card);
+      gameState.discardPile.add(card);
     }
 
     // ログ更新
@@ -226,6 +314,74 @@ class GameScreen extends StatelessWidget {
     if (!gameState.gameOver) {
       gameState.nextTurn();
     }
+  }
+
+  void _showRuleDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text("📜 ルール説明"),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildRuleSection("基本ルール", [
+                  "初期手札2枚。ターン開始時に1枚引き、3枚の中から1枚プレイしてターン終了。",
+                  "手札に「爆弾」が3枚揃った時点で即敗北。",
+                  "山札がなくなった時、手持ちの「爆弾の強さ合計」が【最も高い】プレイヤーが敗北（低い人が勝利）。",
+                ]),
+                Divider(),
+                _buildRuleSection("カードの効果", []),
+                _buildCardInfo("💣 爆弾 (計5枚)", "プレイ不可。持っているだけで危険。\nA(強さ5)x1, B(強さ3)x2, C(強さ1)x2"),
+                _buildCardInfo("💥 起爆 (3枚)", "相手の手札を1枚指定。それが爆弾なら相手は即敗北。"),
+                _buildCardInfo("⚖️ 投下 (3枚)", "相手と「爆弾の強さ合計」を比較。\n合計値が【低い方】が敗北する（自爆注意！）。"),
+                _buildCardInfo("👁 透視 (3枚)", "相手の手札をすべて見る。"),
+                _buildCardInfo("🔄 交換 (2枚)", "相手と手札を1枚ずつ交換。"),
+                _buildCardInfo("🛡 回避 (2枚)", "次の自分の番まで、自分への効果を無効化。"),
+                _buildCardInfo("🔓 解除 (2枚)", "手札を1枚山札の下に戻し、1枚引く。\n（爆弾処理に有効）"),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text("閉じる"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ルールの見出し用ヘルパー
+  Widget _buildRuleSection(String title, List<String> contents) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueAccent)),
+        SizedBox(height: 8),
+        ...contents.map((text) => Padding(
+          padding: const EdgeInsets.only(bottom: 4.0),
+          child: Text("・$text", style: TextStyle(fontSize: 14)),
+        )).toList(),
+        SizedBox(height: 8),
+      ],
+    );
+  }
+
+  // カード説明用ヘルパー
+  Widget _buildCardInfo(String name, String desc) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 100, child: Text(name, style: TextStyle(fontWeight: FontWeight.bold))),
+          Expanded(child: Text(desc, style: TextStyle(fontSize: 13, color: Colors.white70))),
+        ],
+      ),
+    );
   }
 }
 

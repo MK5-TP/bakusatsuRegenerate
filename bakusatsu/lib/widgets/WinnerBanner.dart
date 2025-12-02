@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 class WinnerBanner extends StatelessWidget {
   final String winners;
-  //final VoidCallback onReset;
+  final VoidCallback onReset;
 
-  //const WinnerBanner({required this.winners, required this.onReset, Key? key}) : super(key: key);
-  const WinnerBanner({required this.winners,  Key? key}) : super(key: key);
+  const WinnerBanner({required this.winners, required this.onReset, Key? key})
+      : super(key: key);
+  //const WinnerBanner({required this.winners,  Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -24,10 +25,21 @@ class WinnerBanner extends StatelessWidget {
           children: [
             Text(
               "勝者: $winners",
-              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 8),
-           // ElevatedButton(              onPressed: onReset,              child: Text("リスタート"),            ),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: onReset,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent, // 雰囲気が出るように色を付けてもOK
+                padding: EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+              ),
+              child: Text("リスタート",
+                  style: TextStyle(fontSize: 18, color: Colors.white)),
+            ),
           ],
         ),
       ),

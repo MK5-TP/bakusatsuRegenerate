@@ -3,7 +3,6 @@ import '../models/Player.dart';
 import '../models/Deck.dart';
 import '../models/CardModel.dart';
 import '../logic/CardEffect.dart';
-import '../logic/GameState.dart';
 import 'dart:math';
 
 
@@ -14,7 +13,8 @@ class GameState extends ChangeNotifier {
   bool gameOver = false;
   List<Player> defeatedPlayers = [];
 
-  String lastLog = "ゲーム開始";
+  List<String> gameLogs = [];
+  List<CardModel> discardPile = [];
 
   GameState(this.players) {
     deck = Deck();
@@ -27,6 +27,9 @@ class GameState extends ChangeNotifier {
   Player getPlayer(int index) => players[index];
 
   void initGame() {
+    gameLogs.clear(); 
+    discardPile.clear();
+    addLog("=== ゲーム開始 ===");
     for (var player in players) {
       for (int i = 0; i < 2; i++) {
         deck.drawCardForPlayer(player);
@@ -37,8 +40,26 @@ class GameState extends ChangeNotifier {
   }
 
   void addLog(String message) {
-    lastLog = message;
+    gameLogs.insert(0, message); 
     notifyListeners();
+  }
+
+  void resetGame() {
+    
+    players.addAll(defeatedPlayers);
+    defeatedPlayers.clear();
+
+    for (var p in players) {
+      p.hand.clear();
+      p.ResetEvade();
+    }
+    
+
+    currentPlayerIndex = 0;
+    gameOver = false;
+    deck = Deck(); // 新しいデッキを作成
+
+    initGame();
   }
 
   List<Player> getValidTargets(CardModel card, int cardtype) {
@@ -140,7 +161,7 @@ class GameState extends ChangeNotifier {
 
   Future<void> _runCpuTurn() async {
     // 演出として少し待つ (1.5秒)
-    await Future.delayed(Duration(milliseconds: 1500));
+    await Future.delayed(Duration(milliseconds: 3000));
 
     if (gameOver) return; // 待ち時間に終わっていたら中断
 
@@ -168,7 +189,8 @@ class GameState extends ChangeNotifier {
       // ここではシンプルに「プレイするカード」と「効果対象のカード」を扱います
 
       // まずプレイするカードを消費
-      cpu.hand.removeAt(disarmIndex);
+      CardModel usedCard = cpu.hand.removeAt(disarmIndex);
+      discardPile.add(usedCard);
 
       // removeしたことでbombIndexがずれる可能性を補正
       if (bombIndex > disarmIndex) bombIndex--;
@@ -222,7 +244,8 @@ class GameState extends ChangeNotifier {
         bool handledInternal = (card.id == 9); // ID9は特殊処理
 
         if (!handledInternal) {
-          cpu.hand.removeAt(playIndex);
+          CardModel usedCard = cpu.hand.removeAt(playIndex);
+          discardPile.add(usedCard);
           // 交換の場合、secondaryIndexがずれる可能性があるので補正が必要だが、
           // 今回はCPUなので厳密でなくてもエラー落ちしなければOK
           if (secondaryIndex != null && secondaryIndex > playIndex)
