@@ -20,12 +20,14 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) {
-          return GameState([
-            Player("あなた"),
-            Player("CPU1"),
-            Player("CPU2"),
-            Player("CPU3"),
+          final state = GameState([
+            Player("あなた",isCpu: false),
+            Player("CPU1",isCpu: true),
+            Player("CPU2",isCpu: true),
+            Player("CPU3",isCpu: true),
           ]);
+          state.initGame();
+          return state;
         })
       ],
       child: MaterialApp(

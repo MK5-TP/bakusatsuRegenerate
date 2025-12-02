@@ -2,10 +2,11 @@ import 'CardModel.dart';
 
 class Player {
   String name;
+  bool isCpu;
   List<CardModel> hand;
   bool isEvade = false;
 
-  Player(this.name) : hand = [];
+  Player(this.name,{this.isCpu = false}) : hand = [];
 
   //プレイヤーが所持している爆弾の数を数える（3個以上持ってたら死ぬため）
   int countBombs() {
