@@ -5,7 +5,6 @@ import '../models/CardModel.dart';
 import '../logic/CardEffect.dart';
 import 'dart:math';
 
-
 class GameState extends ChangeNotifier {
   List<Player> players;
   late Deck deck;
@@ -27,7 +26,7 @@ class GameState extends ChangeNotifier {
   Player getPlayer(int index) => players[index];
 
   void initGame() {
-    gameLogs.clear(); 
+    gameLogs.clear();
     discardPile.clear();
     addLog("=== ゲーム開始 ===");
     for (var player in players) {
@@ -40,51 +39,65 @@ class GameState extends ChangeNotifier {
   }
 
   void addLog(String message) {
-    gameLogs.insert(0, message); 
+    gameLogs.insert(0, message);
     notifyListeners();
   }
 
   void resetGame() {
-    
+    String winnerName = players.isNotEmpty ? players.first.name : "あなた";
+
     players.addAll(defeatedPlayers);
     defeatedPlayers.clear();
 
-    for (var p in players) {
-      p.hand.clear();
-      p.ResetEvade();
-    }
-    
+    players.sort((a, b) {
+      int getOrder(String name) {
+        if (name == "あなた") return 0;
+        if (name == "CPU1") return 1;
+        if (name == "CPU2") return 2;
+        if (name == "CPU3") return 3;
+        return 99;
+      }
 
-    currentPlayerIndex = 0;
+      return getOrder(a.name).compareTo(getOrder(b.name));
+    });
+
+    for (var p in players) {
+      p.reset();
+    }
+
+    currentPlayerIndex = players.indexWhere((p) => p.name == winnerName);
+    if (currentPlayerIndex == -1) currentPlayerIndex = 0;
+
     gameOver = false;
-    deck = Deck(); // 新しいデッキを作成
+    deck = Deck();
 
     initGame();
   }
 
   List<Player> getValidTargets(CardModel card, int cardtype) {
     if (cardtype == 1) {
-      return players.where((p) => !p.isEvade && p != currentPlayer).toList();
+      return players.where((p) => p != currentPlayer).toList();
     } else {
       //自分も対象にとれる効果
-      return players.where((p) => !p.isEvade).toList();
+      return players.toList();
     }
   }
 
   void startTurn() {
     if (gameOver) return;
 
-    currentPlayer.ResetEvade(); //
-    deck.drawCardForPlayer(currentPlayer);
-    addLog("${currentPlayer.name}のターンです");
-    if (checkHandBombOver()) {
-      return;
-    }
-
     if (deck.isEmpty()) {
       gameOver = true;
       addLog("山札がなくなりました！ゲーム終了！");
       notifyListeners();
+      return;
+    }
+
+    currentPlayer.ResetEvade(); //
+
+    deck.drawCardForPlayer(currentPlayer);
+    addLog("${currentPlayer.name}のターンです");
+    if (checkHandBombOver()) {
       return;
     }
 
@@ -110,34 +123,36 @@ class GameState extends ChangeNotifier {
       playerDefeated(currentPlayer);
 
       if (!gameOver) {
-        // インデックス調整済みなので、そのまま次の人のターンへ
-        // ただし、playerDefeated内でインデックスがずれている可能性があるので注意
         // シンプルに再開
         startTurn();
       }
       return true; // 敗北した
-    } 
-    return false;// まだ負けてない
+    }
+    return false; // まだ負けてない
   }
 
   void playerDefeated(Player player) {
+    player.isDead = true;
     int defeatedIndex = players.indexOf(player);
-    // 配列から削除するとインデックスがずれるので注意
     defeatedPlayers.add(players.removeAt(defeatedIndex));
+
+    //  勝敗判定の前にインデックスのズレを補正
+    if (defeatedIndex < currentPlayerIndex) {
+      currentPlayerIndex--;
+    }
+
+    // リストが空でなければ範囲内に収める
+    if (players.isNotEmpty) {
+      currentPlayerIndex = currentPlayerIndex % players.length;
+    } else {
+      currentPlayerIndex = 0;
+    }
 
     if (players.length == 1) {
       gameOver = true;
       addLog("勝者が決定しました！: ${players.first.name}");
-    } else {
-      if (defeatedIndex < currentPlayerIndex) {
-        currentPlayerIndex--;
-      }
-      if (currentPlayerIndex >= players.length) {
-          currentPlayerIndex = 0;
-      } else {  
-          currentPlayerIndex = currentPlayerIndex % players.length;
-      }
     }
+
     notifyListeners();
   }
 
@@ -160,7 +175,7 @@ class GameState extends ChangeNotifier {
   }
 
   Future<void> _runCpuTurn() async {
-    // 演出として少し待つ (1.5秒)
+    // 演出として少し待つ (3秒)
     await Future.delayed(Duration(milliseconds: 3000));
 
     if (gameOver) return; // 待ち時間に終わっていたら中断
@@ -236,23 +251,22 @@ class GameState extends ChangeNotifier {
           if (playIndex == 0 && cpu.hand.length > 1) secondaryIndex = 1;
         }
 
+        CardModel usedCard = cpu.hand.removeAt(playIndex);
+        discardPile.add(usedCard);
+
         // カード効果発動
         // 先にプレイするカードを手札から消す（CardEffect内で消すカード以外）
         // effectSwap(交換)などは内部でremoveAtしていないようなのでここで消す
         // effectDisarm(解除)などはCardEffect内で処理される
 
-        bool handledInternal = (card.id == 9); // ID9は特殊処理
+        //bool handledInternal = (card.id == 9);
 
-        if (!handledInternal) {
-          CardModel usedCard = cpu.hand.removeAt(playIndex);
-          discardPile.add(usedCard);
-          // 交換の場合、secondaryIndexがずれる可能性があるので補正が必要だが、
-          // 今回はCPUなので厳密でなくてもエラー落ちしなければOK
-          if (secondaryIndex != null && secondaryIndex > playIndex)
-            secondaryIndex--;
+        if (secondaryIndex != null && secondaryIndex > playIndex) {
+          secondaryIndex--;
         }
 
         addLog("${cpu.name}が ${card.name} を使用！");
+
         if (target != null) {
           // 対象がいる場合
           CardEffect.applyEffect(deck, card, cpu, target, this, secondaryIndex);
@@ -266,6 +280,12 @@ class GameState extends ChangeNotifier {
     }
 
     notifyListeners();
-    nextTurn();
+    if (gameOver) return;
+
+    if (cpu.isDead) {
+      startTurn();
+    } else {
+      nextTurn();
+    }
   }
 }

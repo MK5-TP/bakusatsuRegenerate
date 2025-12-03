@@ -47,14 +47,14 @@ class CardEffect {
         return true;
       case 6:
         if (targetPlayer != null) {
-          effectVision(targetPlayer);
+          effectVision(currentPlayer, targetPlayer, gameState);
         } else {
           print("対象をとれる相手がいなかった...");
         }
         return true;
       case 7:
         if (targetPlayer != null) {
-          effectSwap(currentPlayer, targetPlayer, selectedCardIndex!);
+          effectSwap(currentPlayer, targetPlayer, selectedCardIndex!,gameState);
         } else {
           print("対象をとれる相手がいなかった...");
         }
@@ -91,6 +91,12 @@ class CardEffect {
   }
 
   static void effectDetonate(Player targetPlayer, GameState gameState) {
+    //回避チェック
+    if (targetPlayer.isEvade) {
+      gameState.addLog("🛡️ ${targetPlayer.name} は回避中で効果を受けなかった！");
+      return; // 何もせず終了
+    }
+
     // TODO: 起爆の処理
     if (targetPlayer.hand.isEmpty) return;
 
@@ -109,6 +115,11 @@ class CardEffect {
 
   static void effectDrop(
       Player currentPlayer, Player targetPlayer, GameState gameState) {
+    //回避チェック
+    if (targetPlayer.isEvade) {
+      gameState.addLog("🛡️ ${targetPlayer.name} は回避中で効果を受けなかった！");
+      return;
+    }
     // TODO: 投下の処理
 
     int currentPlayerBombPower = currentPlayer.getBombPower(); // 爆弾の合計値を取得
@@ -125,16 +136,31 @@ class CardEffect {
     }
   }
 
-  static void effectVision(Player targetPlayer) {
-    // TODO: 透視の処理
-    print("${targetPlayer.name}の手札");
-    for (var card in targetPlayer.hand) {
-      print("🔍 ${card.name}");
+  static void effectVision(
+      Player currentPlayer, Player targetPlayer, GameState gameState) {
+    // 回避チェック
+    if (targetPlayer.isEvade) {
+      gameState.addLog("🛡️ ${targetPlayer.name} は回避中で中身が見えない！");
+      return;
+    }
+
+    if (!currentPlayer.isCpu) {
+      String handContent =
+          targetPlayer.hand.map((c) => "【${c.name}】").join(" ");
+      gameState.addLog("👁 透視結果: ${targetPlayer.name}の手札は $handContent です");
+    } else {
+      // CPUが使った場合：ログには事実だけ表示し、中身は隠す
+      gameState
+          .addLog("👁 ${currentPlayer.name} は ${targetPlayer.name} の手札を透視した！");
     }
   }
 
-  static void effectSwap(
-      Player currentPlayer, Player targetPlayer, int selectedCardIndex) {
+  static void effectSwap(Player currentPlayer, Player targetPlayer,
+      int selectedCardIndex, GameState gameState) {
+    if (targetPlayer.isEvade) {
+      gameState.addLog("🛡️ ${targetPlayer.name} は回避中で効果を受けなかった！");
+      return;
+    }
     // TODO: 交換の処理
     CardModel MyPassedCard =
         currentPlayer.hand.removeAt(selectedCardIndex); //相手に渡すカード

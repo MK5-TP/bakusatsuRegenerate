@@ -5,10 +5,11 @@ class Player {
   bool isCpu;
   List<CardModel> hand;
   bool isEvade = false;
+  bool isDead = false;
 
   Player(this.name,{this.isCpu = false}) : hand = [];
 
-  //プレイヤーが所持している爆弾の数を数える（3個以上持ってたら死ぬため）
+  //プレイヤーが所持している爆弾の数を数える（3個以上持ってたら死）
   int countBombs() {
     return hand.where((card) => card.id == 1 || card.id == 2 || card.id == 3).length;
   }
@@ -33,6 +34,12 @@ class Player {
   }
   void ResetEvade() {
     isEvade = false; // ターン開始時に回避解除
+  }
+
+  void reset() {
+    hand.clear();
+    isEvade = false;
+    isDead = false;
   }
 
 }
