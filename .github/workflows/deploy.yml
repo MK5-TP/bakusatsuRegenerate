@@ -16,14 +16,18 @@ jobs:
           channel: 'stable'
 
       - name: Install dependencies
-        run: flutter pub get
+        run: |
+          cd bakusatsu
+          flutter pub get
 
       - name: Build Web
         # ここでリポジトリ名を指定しています
-        run: flutter build web --release --base-href "/bakusatsuRegenerate/"
+        run: |
+          cd bakusatsu
+          flutter build web --release --base-href "/bakusatsuRegenerate/"
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build/web
+          publish_dir: ./bakusatsu/build/web
