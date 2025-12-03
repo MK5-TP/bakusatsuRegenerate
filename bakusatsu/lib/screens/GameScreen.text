@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'CardWidget.dart';
-import 'Deck.dart';
-import 'CardModel.dart';
-import 'CardEffect.dart';
-import 'Player.dart';
-import 'GameState.dart';
+import '../widgets/GameCard.dart';
+import '../models/Deck.dart';
+import '../models/CardModel.dart';
+import '../logic/CardEffect.dart';
+import '../models/Player.dart';
+import '../logic/GameState.dart';
 import 'dart:async';
-import 'WinnerBanner.dart';
+import '../widgets/WinnerBanner.dart';
 
 class GameScreen extends StatefulWidget {
   @override

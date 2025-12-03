@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'CardModel.dart';
+import '../models/CardModel.dart';
 
 class CardWidgetFront extends StatelessWidget {
   final CardModel card;
